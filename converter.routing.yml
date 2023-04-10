@@ -1,0 +1,14 @@
+converter.show_text:
+  path: '/check_converter'
+  defaults:
+    _controller: '\Drupal\converter\Controller\CheckController::showContent'
+    _title: 'Currencies'
+  requirements:
+    _permission: 'access content'
+converter.config_form:
+  path: '/admin/converter/config'
+  defaults:
+    _form: '\Drupal\converter\Form\ConverterConfigForm'
+    _title: 'Config Converting Currencies Settings'
+  requirements:
+    _permission: 'administer content'

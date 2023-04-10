@@ -1,0 +1,9 @@
+langcode: en
+status: true
+dependencies: {  }
+id: rate_currency
+label: 'Rate Currency'
+icon_uuid: null
+icon_default: null
+description: ''
+behavior_plugins: {  }

@@ -1,0 +1,9 @@
+<div class="currency-template">
+  <h3>{{ field_base }}</h3>
+
+  {% for rate,currency in rates_currency %}
+    <b>1</b> {{ field_base }} -> <b>{{ currency }}</b> {{ rate }} <br>
+  {% endfor %}
+
+</div>
+{{ dpm()}}

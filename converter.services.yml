@@ -1,0 +1,4 @@
+services:
+  converter.service_converter:
+    class: Drupal\converter\ServiceConverter
+    arguments: ['@config.factory']

@@ -1,0 +1,38 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.currency.field_base
+    - field.field.node.currency.field_currency_rates
+    - node.type.currency
+  module:
+    - entity_reference_revisions
+    - user
+id: node.currency.default
+targetEntityType: node
+bundle: currency
+mode: default
+content:
+  field_base:
+    type: entity_reference_label
+    label: above
+    settings:
+      link: true
+    third_party_settings: {  }
+    weight: 1
+    region: content
+  field_currency_rates:
+    type: entity_reference_revisions_entity_view
+    label: above
+    settings:
+      view_mode: default
+      link: ''
+    third_party_settings: {  }
+    weight: 2
+    region: content
+  links:
+    settings: {  }
+    third_party_settings: {  }
+    weight: 0
+    region: content
+hidden: {  }

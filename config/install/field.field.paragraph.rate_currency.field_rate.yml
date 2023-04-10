@@ -1,0 +1,22 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.paragraph.field_rate
+    - paragraphs.paragraphs_type.rate_currency
+id: paragraph.rate_currency.field_rate
+field_name: field_rate
+entity_type: paragraph
+bundle: rate_currency
+label: Rate
+description: ''
+required: true
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  min: null
+  max: null
+  prefix: ''
+  suffix: ''
+field_type: decimal

@@ -1,0 +1,32 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.paragraph.rate_currency.field_currency
+    - field.field.paragraph.rate_currency.field_rate
+    - paragraphs.paragraphs_type.rate_currency
+id: paragraph.rate_currency.default
+targetEntityType: paragraph
+bundle: rate_currency
+mode: default
+content:
+  field_currency:
+    type: entity_reference_autocomplete
+    weight: 0
+    region: content
+    settings:
+      match_operator: CONTAINS
+      match_limit: 10
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  field_rate:
+    type: number
+    weight: 1
+    region: content
+    settings:
+      placeholder: ''
+    third_party_settings: {  }
+hidden:
+  created: true
+  status: true

@@ -1,0 +1,30 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_currency_rates
+    - node.type.currency
+    - paragraphs.paragraphs_type.rate_currency
+  module:
+    - entity_reference_revisions
+id: node.currency.field_currency_rates
+field_name: field_currency_rates
+entity_type: node
+bundle: currency
+label: 'Currency Rates'
+description: ''
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:paragraph'
+  handler_settings:
+    target_bundles:
+      rate_currency: rate_currency
+    negate: 0
+    target_bundles_drag_drop:
+      rate_currency:
+        weight: 2
+        enabled: true
+field_type: entity_reference_revisions

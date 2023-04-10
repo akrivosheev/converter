@@ -1,0 +1,13 @@
+name: Converter Module
+description: Module for convert currency
+package: Custom
+type: module
+core_version_requirement: 9.x
+dependencies:
+  - drupal:node
+  - drupal:taxonomy
+  - drupal:views
+  - paragraphs:paragraphs
+  - entity_reference_revisions:entity_reference_revisions
+  - ultimate_cron:ultimate_cron
+configure: converter.config_form

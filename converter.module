@@ -1,0 +1,206 @@
+<?php
+
+use Drupal\Core\Routing\RouteMatchInterface;
+use Drupal\Core\Entity\EntityTypeInterface;
+use Drupal\taxonomy\Entity\Term;
+use Drupal\paragraphs\Entity\Paragraph;
+use GuzzleHttp\Exception\RequestException;
+use Drupal\node\Entity\Node;
+
+/**
+ * Implements hook_theme().
+ */
+function converter_theme($existing, $type, $theme, $path) {
+  return [
+    'currency_template' => [
+      'variables' => ['node' => NULL],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_theme_suggestions_HOOK_alter().
+ */
+function converter_theme_suggestions_node_alter(array &$suggestions, array &$variables) {
+
+  $node = $variables['elements']['#node'];
+  if ($node->getType() === 'currency') {
+
+    $base_tid = $node->get('field_base')->getValue()[0]['target_id'];
+    $base_term = Term::load($base_tid);;
+    $base_currency_title = $base_term->getName();
+
+    $currency_rates = $node->get('field_currency_rates')->getValue();
+    $paragraph_ids = [];
+    foreach ($currency_rates as $currency_rate) {
+      $paragraph_ids[] = $currency_rate['target_id'];
+    }
+
+    $paragraphs = Paragraph::loadMultiple($paragraph_ids);
+
+    $rates_currency = [];
+    foreach ($paragraphs as $paragraph) {
+
+      $field_rate = $paragraph->get('field_rate')->getValue();
+      $value = current($field_rate)['value'];
+
+      $field_currency = $paragraph->get('field_currency')->getValue();
+      $term_id = current($field_currency)['target_id'];
+      $currency_term = Term::load($term_id);
+      $rates_currency[$currency_term->getName()] = $value;
+
+    }
+
+    $variables['rates_currency'] = $rates_currency;
+    $variables['field_base'] = $base_currency_title;
+
+    $suggestions[] = 'currency_template';
+  }
+}
+
+/**
+ * Implements hook_cron().
+ */
+function converter_cron() {
+
+  // Get config of module (API key and currency list)
+  $config = \Drupal::config('converter.settings');
+  $api_key = $config->get('api_key');
+  $currency_list = $config->get('currency_list');
+
+  // Get Term ids from currency list
+  $term_ids = [];
+  foreach ($currency_list as $currency) {
+    if (!empty($currency)) {
+      $term_ids[] = $currency;
+    }
+  }
+  $currency_terms = Term::loadMultiple($term_ids);
+
+  // Get Currency codes by currency list
+  $currency_codes = [];
+  foreach ($currency_terms as $key => $currency_term) {
+    $currency_codes[$key] = $currency_term->get('field_currency_iso')->value;
+  }
+
+  // Create api urs based on Currency codes
+  $api_urls = [];
+  foreach ($currency_codes as $key => $base) {
+    $symbols = implode(",", $currency_codes);
+    $api_urls[$key] = 'https://api.apilayer.com/fixer/latest?base=' . $base . '&symbols=' . $symbols .'&apikey=' . $api_key;
+  }
+
+  try {
+
+    //Get Info from https://api.apilayer.com
+    foreach ($api_urls as $key => $api_url) {
+      $client = \Drupal::httpClient();
+      $response = $client->get($api_url);
+      $data = json_decode($response->getBody(), TRUE);
+
+      if ($data['success']) {
+        $rates = $data['rates'];
+
+        // Check if this is exist node fo this currency
+        $query = \Drupal::entityQuery('node')
+          ->condition('status', 1)
+          ->condition('field_base', $key);
+        $nids = $query->execute();
+
+        // If there is exist node for this currency
+        if (!empty($nids)) {
+          // We update this node
+          $nid = current($nids);
+          $node = Node::load($nid);
+          $currency_rates = $node->get('field_currency_rates')->getValue();
+
+          // By updating exist paragraphs with new rates info
+          $paragraph_ids = [];
+          foreach ($currency_rates as $currency_rate) {
+            $paragraph_ids[] = $currency_rate['target_id'];
+          }
+          $paragraphs = Paragraph::loadMultiple($paragraph_ids);
+
+          foreach ($paragraphs as $paragraph) {
+            $field_currency = $paragraph->get('field_currency')->getValue();
+            $term_id = current($field_currency)['target_id'];
+            $currency_term = Term::load($term_id);
+            $paragraph->set('field_rate', $rates[$currency_term->get('field_currency_iso')->value]);
+            unset($rates[$currency_term->get('field_currency_iso')->value]);
+            $paragraph->save();
+          }
+
+          // And creating new paragraphs with rates info
+          foreach ($rates as $currency_code => $rate) {
+
+            $tid = converter_getTermIdByCurrencyCode($currency_code);
+
+            $paragraph = Paragraph::create(['type' => 'rate_currency',]);
+            $paragraph->set('field_rate', $rate);
+            $paragraph->set('field_currency', $tid);
+            $paragraph->isNew();
+            $paragraph->save();
+
+            $currency_rates[] = [
+              'target_id' => $paragraph->id(),
+              'target_revision_id' => $paragraph->getRevisionId(),
+            ];
+
+            $node->set('field_currency_rates', $currency_rates);
+          }
+
+          $node->save();
+        }
+        else {
+          // If there is exist node for this currency we create it
+          $tid = converter_getTermIdByCurrencyCode($data['base']);
+
+          $node = Node::create([
+            'type' => 'currency',
+            'title' => $data['base'],
+            'field_base' => $tid,
+          ]);
+
+          $new_currency_rates = [];
+          foreach ($rates as $currency_code => $rate) {
+            $tid = converter_getTermIdByCurrencyCode($currency_code);
+
+            $paragraph = Paragraph::create(['type' => 'rate_currency',]);
+            $paragraph->set('field_rate', $rate);
+            $paragraph->set('field_currency', $tid);
+            $paragraph->isNew();
+            $paragraph->save();
+
+            $new_currency_rates[] = [
+              'target_id' => $paragraph->id(),
+              'target_revision_id' => $paragraph->getRevisionId(),
+            ];
+          }
+          $node->set('field_currency_rates', $new_currency_rates);
+          $node->save();
+        }
+
+      }
+
+    }
+    \Drupal::logger('converter')->info('Currency rates have updated');
+
+  }
+  catch (RequestException $e) {
+    \Drupal::logger('converter')->error('There was mistake in getting info: ' . $e);
+  }
+
+}
+
+function converter_getTermIdByCurrencyCode($currency_code) {
+  $vocabulary_name = 'currency';
+  $query = \Drupal::entityQuery('taxonomy_term');
+  $query
+    ->condition('vid', $vocabulary_name)
+    ->condition('field_currency_iso', $currency_code);
+  ;
+  $tids = $query->execute();
+  $tid = current($tids);
+
+  return $tid;
+}
